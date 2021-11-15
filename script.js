@@ -72,16 +72,16 @@ $(document).ready(function(){
     }
     $("#nextButton").click(function(){
         
-        if( testCounter < tests.length - 1){
+        if( testCounter < tests.length){
             $("#nextButton").attr("disabled",true)
             nextTest();
-        }else if(testCounter == tests.length - 1){
+        }else if(testCounter == tests.length){
             playFUllVideo("#stage")
 
             $('#nextButton').empty()
             $('#nextButton').append("Thanks for everything Brad!")
             $('#nextButton').attr("disabled",true)
-        }else if(testCounter == tests.length){
+        }else if(testCounter == tests.length + 1){
             // play title card
 
         }
