@@ -46,6 +46,13 @@ let tests = [
             ]
         },
         {
+            "title":"Test: Brad as seen by Yash",
+            "asserts":[
+                "Assert that Brad is awesome",
+                "Assert that Brad will meet us when hes in India"
+            ]
+        },
+        {
             "title":"Test: Brad with FSE3",
             "asserts":[
                 "Assert that we are one team",
