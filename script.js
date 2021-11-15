@@ -77,6 +77,10 @@ $(document).ready(function(){
             nextTest();
         }else if(testCounter == tests.length - 1){
             playFUllVideo("#stage")
+
+            $('#nextButton').empty()
+            $('#nextButton').append("Thanks for everything Brad!")
+            $('#nextButton').attr("disabled",true)
         }else if(testCounter == tests.length){
             // play title card
 
