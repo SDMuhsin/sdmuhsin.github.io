@@ -64,6 +64,7 @@ $(document).ready(function(){
     }
     
     function playFUllVideo(stageId){
+        $("#sadBg").remove();
         $(stageId).empty()
         $(stageId).append("<div id = 'intContainer' class = 'container-fluid d-flex flex-column ' style= 'min-height:75%'></div>")
         addVideoAndPlay("https://drive.google.com/file/d/18NFmGweFBOEz5J3UzD2QPi-1hRTOigW3/view?usp=sharing")
