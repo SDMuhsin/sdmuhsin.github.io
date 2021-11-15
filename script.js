@@ -13,9 +13,7 @@ $(document).ready(function(){
     function addVideoAndPlay(link){
 
         $("#intContainer").append(
-        `<video class = "mx-auto my-4" id = "studentVid" controls="controls" style = "width:50%;height:auto">
-            <source id = "vidSrc" src = "${link}"  type="video/mp4">
-        </video>`);
+        `<iframe src="https://drive.google.com/file/d/18NFmGweFBOEz5J3UzD2QPi-1hRTOigW3/preview" width="640" height="480" allow="autoplay"></iframe>`);
         $('#studentVid').trigger('play');
         $('#studentVid').prop('muted','false')
 
@@ -68,7 +66,7 @@ $(document).ready(function(){
     function playFUllVideo(stageId){
         $(stageId).empty()
         $(stageId).append("<div id = 'intContainer' class = 'container-fluid d-flex flex-column ' style= 'min-height:75%'></div>")
-        addVideoAndPlay(tests[0].videoLink)
+        addVideoAndPlay("https://drive.google.com/file/d/18NFmGweFBOEz5J3UzD2QPi-1hRTOigW3/view?usp=sharing")
     }
     $("#nextButton").click(function(){
         
