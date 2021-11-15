@@ -13,7 +13,7 @@ $(document).ready(function(){
     function addVideoAndPlay(link){
 
         $("#intContainer").append(
-        `<iframe src="https://drive.google.com/file/d/18NFmGweFBOEz5J3UzD2QPi-1hRTOigW3/preview" width="640" height="480" allow="autoplay"></iframe>`);
+        `<div class = 'container-fluid d-flex justify-content-center align-items-center'> <iframe src="https://drive.google.com/file/d/18NFmGweFBOEz5J3UzD2QPi-1hRTOigW3/preview" width="640" height="480" allow="autoplay"></iframe> </div>`);
         $('#studentVid').trigger('play');
         $('#studentVid').prop('muted','false')
 
