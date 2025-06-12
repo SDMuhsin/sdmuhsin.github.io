@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Enhanced Bullet Hell Boss Battle</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            height: 100%;
+            background-color: #000;
+            font-family: 'Courier New', Courier, monospace;
+            color: #fff;
+        }
+        canvas {
+            display: block;
+            background-color: #111;
+        }
+        .ui {
+            position: absolute;
+            user-select: none;
+            -webkit-user-select: none;
+            text-shadow: 2px 2px 4px #000;
+        }
+        #player-hp {
+            bottom: 80px; /* Adjusted for ability bar */
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 24px;
+            font-weight: bold;
+        }
+        #boss-hp {
+            top: 20px;
+            right: 20px;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        #ability-bar {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+        }
+        .ability-button {
+            width: 60px;
+            height: 60px;
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            background-color: #333;
+        }
+        .ability-button.on-cooldown {
+            cursor: not-allowed;
+            filter: grayscale(80%);
+        }
+        .ability-button img, .ability-button span {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 10px;
+        }
+        .cooldown-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 0%;
+            background-color: rgba(0, 0, 0, 0.7);
+            transition: height 0.1s linear;
+        }
+        #joystick-area {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 120px;
+            height: 120px;
+        }
+        #joystick-base {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+        }
+        #joystick-knob {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background-color: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            left: 30px;
+            top: 30px;
+            cursor: grab;
+        }
+        #victory-screen, #game-over-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            font-size: 40vw;
+            color: #ffd700;
+            z-index: 100;
+        }
+        #game-over-screen {
+            flex-direction: column;
+            font-size: 8vw;
+            color: #ff4444;
+        }
+        #restart-button {
+            margin-top: 20px;
+            padding: 15px 30px;
+            font-size: 20px;
+            background-color: #fff;
+            color: #000;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Preload images -->
+    <div style="display:none;">
+        <img id="croissant-img" src="croissant.png" alt="Boss">
+    </div>
+
+    <!-- UI Elements -->
+    <div id="player-hp" class="ui">HP: 100</div>
+    <div id="boss-hp" class="ui">BOSS HP: 500</div>
+
+    <div id="ability-bar" class="ui">
+        <div id="mel-button" class="ability-button" data-ability="mel">
+            <img src="mel.jpg" alt="Mel" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <span style="display:none;">MEL</span>
+            <div class="cooldown-overlay"></div>
+        </div>
+        <div id="basil-button" class="ability-button" data-ability="basil">
+            <img src="basil.jpg" alt="Basil" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <span style="display:none;">BASIL</span>
+            <div class="cooldown-overlay"></div>
+        </div>
+        <div id="khali-button" class="ability-button" data-ability="khali">
+            <img src="khali.jpg" alt="Khali" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <span style="display:none;">KHALI</span>
+            <div class="cooldown-overlay"></div>
+        </div>
+        <div id="mara-button" class="ability-button" data-ability="mara">
+            <img src="mara.jpg" alt="Mara" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <span style="display:none;">MARA</span>
+            <div class="cooldown-overlay"></div>
+        </div>
+    </div>
+
+    <div id="joystick-area">
+        <div id="joystick-base"></div>
+        <div id="joystick-knob"></div>
+    </div>
+
+    <div id="victory-screen">E</div>
+    <div id="game-over-screen">
+        <div>GAME OVER</div>
+        <button id="restart-button">Restart</button>
+    </div>
+
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // --- Image Loading ---
+        const bossImage = document.getElementById('croissant-img');
+        let bossImageLoaded = false;
+        bossImage.onload = () => { bossImageLoaded = true; };
+
+
+        // --- UI & Controls ---
+        const ui = {
+            playerHp: document.getElementById('player-hp'),
+            bossHp: document.getElementById('boss-hp'),
+            joystickArea: document.getElementById('joystick-area'),
+            joystickKnob: document.getElementById('joystick-knob'),
+            victoryScreen: document.getElementById('victory-screen'),
+            gameOverScreen: document.getElementById('game-over-screen'),
+            restartButton: document.getElementById('restart-button'),
+            abilityButtons: document.querySelectorAll('.ability-button')
+        };
+
+        let animationFrameId;
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        // --- Game State & Entities ---
+        let state = {};
+
+        function initializeState() {
+            state = {
+                player: {
+                    x: canvas.width / 2,
+                    y: canvas.height - 100,
+                    width: 30,
+                    height: 30,
+                    speed: 2, // slowed down
+                    hp: 100,
+                    maxHp: 100,
+                    shootCooldown: 0,
+                },
+                boss: {
+                    x: canvas.width / 2 - 100,
+                    y: 50,
+                    width: 150, // resized for croissant
+                    height: 75,
+                    hp: 500,
+                    maxHp: 500,
+                    speed: 1.5, // slowed down
+                    direction: 1,
+                    shootCooldown: 0,
+                    pattern: 'spread',
+                    frozen: false
+                },
+                abilities: {
+                    mel: { active: false, duration: 0, maxDuration: 180, cooldown: 0, maxCooldown: 600 }, // 3s duration, 10s cd
+                    basil: { active: false, duration: 0, maxDuration: 300, cooldown: 0, maxCooldown: 900 }, // 5s duration, 15s cd
+                    khali: { active: false, duration: 0, maxDuration: 420, cooldown: 0, maxCooldown: 720 }, // 7s duration, 12s cd
+                    mara: { active: false, duration: 0, maxDuration: 1, cooldown: 0, maxCooldown: 1200 }, // instant, 20s cd
+                },
+                playerBullets: [],
+                bossBullets: [],
+                miniShips: [],
+                gameOver: false,
+                victory: false,
+            };
+        }
+
+        // --- Player ---
+        const player = {
+            draw() {
+                const { x, y, width, height } = state.player;
+                ctx.fillStyle = '#00ffff';
+                ctx.fillRect(x - width / 2, y - height / 2, width, height);
+
+                if (state.abilities.basil.active) {
+                    ctx.beginPath();
+                    ctx.arc(x, y, width, 0, Math.PI * 2);
+                    ctx.strokeStyle = 'rgba(0, 255, 255, 0.8)';
+                    ctx.lineWidth = 4;
+                    ctx.stroke();
+                }
+            },
+            shoot() {
+                const { shootCooldown, x, y } = state.player;
+                if (shootCooldown <= 0) {
+                    const enhanced = state.abilities.khali.active;
+                    state.playerBullets.push({
+                        x: x,
+                        y: y - 20,
+                        width: enhanced ? 10 : 5,
+                        height: enhanced ? 25 : 15,
+                        speed: enhanced ? 9 : 7,
+                        color: enhanced ? '#9400D3' : '#00ffff',
+                        damage: enhanced ? 15 : 5,
+                    });
+                    state.player.shootCooldown = 15; // always shooting
+                } else {
+                    state.player.shootCooldown--;
+                }
+            }
+        };
+
+        // --- Boss ---
+        const boss = {
+            draw() {
+                const { x, y, width, height, frozen } = state.boss;
+                 if (bossImageLoaded) {
+                    ctx.drawImage(bossImage, x, y, width, height);
+                    if(frozen) {
+                        ctx.fillStyle = 'rgba(0, 172, 230, 0.5)';
+                        ctx.fillRect(x, y, width, height);
+                    }
+                } else {
+                    // Fallback rectangle
+                    ctx.fillStyle = frozen ? '#87CEEB' : '#ff4444';
+                    ctx.fillRect(x, y, width, height);
+                }
+            },
+            update() {
+                const { boss } = state;
+                if(boss.frozen) return; // Skip movement and shooting if frozen
+
+                boss.x += boss.speed * boss.direction;
+                if (boss.x <= 0 || boss.x + boss.width >= canvas.width) {
+                    boss.direction *= -1;
+                }
+                this.shoot();
+            },
+            shoot() {
+                const { boss } = state;
+                if (boss.shootCooldown <= 0) {
+                     if (Math.random() < 0.2) boss.pattern = boss.pattern === 'spread' ? 'spiral' : 'spread';
+
+                    if (boss.pattern === 'spread') {
+                        this.shootSpread();
+                        boss.shootCooldown = 80; // slowed down
+                    } else {
+                         this.shootSpiral();
+                         boss.shootCooldown = 8; // slowed down
+                    }
+                } else {
+                    boss.shootCooldown--;
+                }
+            },
+            shootSpread() { /* ... same as before ... */
+                const { x, y, width } = state.boss;
+                const bulletCount = 8;
+                const angleIncrement = Math.PI / (bulletCount - 1);
+                for (let i = 0; i < bulletCount; i++) {
+                    const angle = angleIncrement * i;
+                    state.bossBullets.push({
+                        x: x + width / 2, y: y + state.boss.height, width: 10, height: 10, speed: 3,
+                        dx: Math.cos(angle), dy: Math.sin(angle)
+                    });
+                }
+            },
+            shootSpiral() { /* ... same as before ... */
+                const { x, y, width } = state.boss;
+                state.boss.spiralAngle = (state.boss.spiralAngle || 0) + 0.5;
+                const angle = state.boss.spiralAngle;
+                 state.bossBullets.push({
+                    x: x + width / 2, y: y + state.boss.height, width: 8, height: 8, speed: 4,
+                    dx: Math.cos(angle), dy: Math.sin(angle)
+                });
+            }
+        };
+
+        // --- Mini Ships (Mara's Ability) ---
+        function updateMiniShips() {
+            state.miniShips.forEach((ship, index) => {
+                ship.y -= ship.speed;
+                // Simple auto-shoot
+                if (ship.shootCooldown <= 0) {
+                     state.playerBullets.push({
+                        x: ship.x, y: ship.y, width: 3, height: 10, speed: 8,
+                        color: '#00ff88', damage: 3,
+                    });
+                    ship.shootCooldown = 25;
+                } else {
+                    ship.shootCooldown--;
+                }
+                // Remove if off-screen
+                if(ship.y < -20) state.miniShips.splice(index, 1);
+            });
+        }
+        function drawMiniShips(){
+             ctx.fillStyle = '#00ff88';
+             state.miniShips.forEach(s => ctx.fillRect(s.x - s.width / 2, s.y - s.height / 2, s.width, s.height));
+        }
+
+        // --- Bullets & Collisions ---
+        function updateBullets() {
+            // Player & Miniship bullets
+            state.playerBullets.forEach((bullet, index) => {
+                bullet.y -= bullet.speed;
+                if (bullet.y < -bullet.height) {
+                    state.playerBullets.splice(index, 1);
+                } else { // Collision check
+                     if (bullet.x > state.boss.x && bullet.x < state.boss.x + state.boss.width &&
+                        bullet.y > state.boss.y && bullet.y < state.boss.y + state.boss.height) {
+                        state.playerBullets.splice(index, 1);
+                        state.boss.hp -= bullet.damage;
+                        if (state.boss.hp <= 0) {
+                            state.boss.hp = 0;
+                            state.victory = true;
+                        }
+                    }
+                }
+            });
+
+            // Boss bullets
+            state.bossBullets.forEach((bullet, index) => {
+                bullet.x += bullet.dx * bullet.speed;
+                bullet.y += bullet.dy * bullet.speed;
+                // Collision with player
+                if (!state.abilities.basil.active) {
+                    const playerRect = { x: state.player.x - state.player.width / 2, y: state.player.y - state.player.height/2, width: state.player.width, height: state.player.height };
+                    const bulletRect = { x: bullet.x - bullet.width/2, y: bullet.y - bullet.height/2, width: bullet.width, height: bullet.height };
+                    if (bulletRect.x < playerRect.x + playerRect.width && bulletRect.x + bulletRect.width > playerRect.x &&
+                        bulletRect.y < playerRect.y + playerRect.height && bulletRect.y + bulletRect.height > playerRect.y) {
+                         state.bossBullets.splice(index, 1);
+                         state.player.hp -= 10;
+                         if (state.player.hp <= 0) {
+                            state.player.hp = 0;
+                            state.gameOver = true;
+                        }
+                    }
+                }
+                // Remove if off-screen
+                if (bullet.x < 0 || bullet.x > canvas.width || bullet.y < 0 || bullet.y > canvas.height) {
+                    state.bossBullets.splice(index, 1);
+                }
+            });
+        }
+
+        function drawBullets() {
+            state.playerBullets.forEach(b => {
+                 ctx.fillStyle = b.color;
+                 // Sharp bullets for Khali
+                 if(b.color === '#9400D3') {
+                     ctx.beginPath();
+                     ctx.moveTo(b.x, b.y);
+                     ctx.lineTo(b.x - b.width / 2, b.y + b.height);
+                     ctx.lineTo(b.x + b.width / 2, b.y + b.height);
+                     ctx.closePath();
+                     ctx.fill();
+                 } else {
+                    ctx.fillRect(b.x - b.width / 2, b.y, b.width, b.height);
+                 }
+            });
+
+            ctx.fillStyle = '#ffaa00';
+            state.bossBullets.forEach(b => ctx.fillRect(b.x - b.width / 2, b.y - b.height / 2, b.width, b.height));
+        }
+
+
+        // --- Abilities Logic ---
+        function updateAbilities() {
+            for (const key in state.abilities) {
+                const ability = state.abilities[key];
+                // Handle active duration
+                if (ability.active) {
+                    ability.duration--;
+                    if (ability.duration <= 0) {
+                        ability.active = false;
+                        // Deactivation effects
+                        if (key === 'mel') state.boss.frozen = false;
+                    }
+                }
+                // Handle cooldown
+                if (ability.cooldown > 0) {
+                    ability.cooldown--;
+                }
+            }
+             // Mel's healing effect
+            if(state.abilities.mel.active && state.player.hp < state.player.maxHp) {
+                state.player.hp += 0.1; // Heal over time
+                if(state.player.hp > state.player.maxHp) state.player.hp = state.player.maxHp;
+            }
+        }
+
+        function activateAbility(name) {
+            const ability = state.abilities[name];
+            if (ability.cooldown > 0) return; // Can't use while on cooldown
+
+            ability.active = true;
+            ability.duration = ability.maxDuration;
+            ability.cooldown = ability.maxCooldown;
+
+            // Activation effects
+            if (name === 'mel') {
+                state.boss.frozen = true;
+            }
+            if (name === 'mara') {
+                // Summon two ships
+                for(let i = -1; i <= 1; i+=2) {
+                    state.miniShips.push({
+                        x: state.player.x + (i * 30), y: state.player.y, width: 15, height: 15,
+                        speed: 3, shootCooldown: Math.random() * 20
+                    });
+                }
+            }
+        }
+
+        // --- UI & Controls ---
+        const joystick = { /* ... same as before, no changes needed ... */
+            active: false, radius: 60, knobRadius: 30, baseX: 0, baseY: 0, dx: 0, dy: 0,
+            init() { this.baseX = ui.joystickArea.offsetLeft + this.radius; this.baseY = ui.joystickArea.offsetTop + this.radius; },
+            handleStart(e) { e.preventDefault(); this.active = true; ui.joystickKnob.style.cursor = 'grabbing'; },
+            handleMove(e) {
+                if (!this.active) return;
+                e.preventDefault();
+                const touch = e.touches ? e.touches[0] : e;
+                let deltaX = touch.clientX - this.baseX; let deltaY = touch.clientY - this.baseY;
+                const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                const maxDist = this.radius - this.knobRadius;
+                if (distance > maxDist) { deltaX = (deltaX / distance) * maxDist; deltaY = (deltaY / distance) * maxDist; }
+                ui.joystickKnob.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+                this.dx = deltaX / maxDist; this.dy = deltaY / maxDist;
+            },
+            handleEnd(e) {
+                if (!this.active) return;
+                e.preventDefault();
+                this.active = false;
+                ui.joystickKnob.style.cursor = 'grab';
+                ui.joystickKnob.style.transform = `translate(0px, 0px)`;
+                this.dx = 0; this.dy = 0;
+            }
+        };
+
+        function updatePlayerPosition() {
+            const { player } = state;
+            player.x += joystick.dx * player.speed;
+            player.y += joystick.dy * player.speed;
+            // Boundary checks
+            const halfW = player.width / 2; const halfH = player.height/2;
+            if (player.x < halfW) player.x = halfW; if (player.x > canvas.width - halfW) player.x = canvas.width - halfW;
+            if (player.y < halfH) player.y = halfH; if (player.y > canvas.height - halfH) player.y = canvas.height - halfH;
+        }
+
+        function updateUI() {
+            ui.playerHp.textContent = `HP: ${Math.ceil(state.player.hp)}`;
+            ui.bossHp.textContent = `BOSS HP: ${state.boss.hp}`;
+
+            ui.abilityButtons.forEach(button => {
+                const name = button.dataset.ability;
+                const ability = state.abilities[name];
+                const overlay = button.querySelector('.cooldown-overlay');
+
+                if (ability.cooldown > 0) {
+                    button.classList.add('on-cooldown');
+                    overlay.style.height = `${(ability.cooldown / ability.maxCooldown) * 100}%`;
+                } else {
+                    button.classList.remove('on-cooldown');
+                    overlay.style.height = '0%';
+                }
+            });
+        }
+
+
+        // --- Game Loop ---
+        function update() {
+            if (state.gameOver || state.victory) return;
+            updatePlayerPosition();
+            player.shoot();
+            boss.update();
+            updateBullets();
+            updateMiniShips();
+            updateAbilities();
+            updateUI();
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            player.draw();
+            boss.draw();
+            drawBullets();
+            drawMiniShips();
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+
+            if (state.victory) {
+                ui.victoryScreen.style.display = 'flex';
+                cancelAnimationFrame(animationFrameId);
+                return;
+            }
+            if (state.gameOver) {
+                ui.gameOverScreen.style.display = 'flex';
+                cancelAnimationFrame(animationFrameId);
+                return;
+            }
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        // --- Initialization and Event Listeners ---
+        function startGame() {
+            ui.victoryScreen.style.display = 'none';
+            ui.gameOverScreen.style.display = 'none';
+            resizeCanvas();
+            initializeState();
+            joystick.init();
+            updateUI();
+            if(animationFrameId) cancelAnimationFrame(animationFrameId);
+            gameLoop();
+        }
+
+        window.addEventListener('resize', () => { resizeCanvas(); joystick.init(); });
+
+        // Ability buttons
+        ui.abilityButtons.forEach(button => {
+            const handler = (e) => { e.preventDefault(); activateAbility(button.dataset.ability); };
+            button.addEventListener('mousedown', handler);
+            button.addEventListener('touchstart', handler);
+        });
+
+        // Joystick Controls
+        ui.joystickArea.addEventListener('mousedown', joystick.handleStart.bind(joystick));
+        window.addEventListener('mousemove', joystick.handleMove.bind(joystick));
+        window.addEventListener('mouseup', joystick.handleEnd.bind(joystick));
+        ui.joystickArea.addEventListener('touchstart', joystick.handleStart.bind(joystick), { passive: false });
+        window.addEventListener('touchmove', joystick.handleMove.bind(joystick), { passive: false });
+        window.addEventListener('touchend', joystick.handleEnd.bind(joystick));
+
+        ui.restartButton.addEventListener('click', startGame);
+
+        window.onload = startGame;
+    </script>
+
+</body>
+</html>
