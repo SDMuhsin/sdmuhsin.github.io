@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Enhanced Bullet Hell Boss Battle</title>
+    <title>Final Bullet Hell Boss Battle</title>
     <style>
         body, html {
             margin: 0;
@@ -80,7 +80,7 @@
         }
         #joystick-area {
             position: absolute;
-            bottom: 30px;
+            bottom: 20px;
             right: 20px;
             width: 120px;
             height: 120px;
@@ -102,7 +102,28 @@
             top: 30px;
             cursor: grab;
         }
-        #victory-screen, #game-over-screen {
+        #victory-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            font-size: 10vw; /* Adjusted font size */
+            color: #ffd700;
+            z-index: 100;
+            text-align: center;
+            line-height: 1.2;
+
+            /* --- VICTORY BACKGROUND --- */
+            background-image: url('drake.jpg');
+            background-size: cover;
+            background-position: center center;
+            background-repeat: no-repeat;
+        }
+         #game-over-screen {
             position: absolute;
             top: 0;
             left: 0;
@@ -112,14 +133,10 @@
             display: none;
             justify-content: center;
             align-items: center;
-            font-size: 40vw;
-            color: #ffd700;
-            z-index: 100;
-        }
-        #game-over-screen {
             flex-direction: column;
             font-size: 8vw;
             color: #ff4444;
+            z-index: 100;
         }
         #restart-button {
             margin-top: 20px;
@@ -137,12 +154,10 @@
 
     <canvas id="gameCanvas"></canvas>
 
-    <!-- Preload images -->
     <div style="display:none;">
         <img id="croissant-img" src="croissant.png" alt="Boss">
-    </div>
+        <img src="drake.jpg" alt="Victory Background"> </div>
 
-    <!-- UI Elements -->
     <div id="player-hp" class="ui">HP: 100</div>
     <div id="boss-hp" class="ui">BOSS HP: 500</div>
 
@@ -174,7 +189,8 @@
         <div id="joystick-knob"></div>
     </div>
 
-    <div id="victory-screen">E</div>
+    <div id="victory-screen">You won!<br>E</div>
+
     <div id="game-over-screen">
         <div>GAME OVER</div>
         <button id="restart-button">Restart</button>
@@ -329,7 +345,7 @@
                     boss.shootCooldown--;
                 }
             },
-            shootSpread() { /* ... same as before ... */
+            shootSpread() {
                 const { x, y, width } = state.boss;
                 const bulletCount = 8;
                 const angleIncrement = Math.PI / (bulletCount - 1);
@@ -341,7 +357,7 @@
                     });
                 }
             },
-            shootSpiral() { /* ... same as before ... */
+            shootSpiral() {
                 const { x, y, width } = state.boss;
                 state.boss.spiralAngle = (state.boss.spiralAngle || 0) + 0.5;
                 const angle = state.boss.spiralAngle;
@@ -356,7 +372,6 @@
         function updateMiniShips() {
             state.miniShips.forEach((ship, index) => {
                 ship.y -= ship.speed;
-                // Simple auto-shoot
                 if (ship.shootCooldown <= 0) {
                      state.playerBullets.push({
                         x: ship.x, y: ship.y, width: 3, height: 10, speed: 8,
@@ -366,7 +381,6 @@
                 } else {
                     ship.shootCooldown--;
                 }
-                // Remove if off-screen
                 if(ship.y < -20) state.miniShips.splice(index, 1);
             });
         }
@@ -377,12 +391,11 @@
 
         // --- Bullets & Collisions ---
         function updateBullets() {
-            // Player & Miniship bullets
             state.playerBullets.forEach((bullet, index) => {
                 bullet.y -= bullet.speed;
                 if (bullet.y < -bullet.height) {
                     state.playerBullets.splice(index, 1);
-                } else { // Collision check
+                } else {
                      if (bullet.x > state.boss.x && bullet.x < state.boss.x + state.boss.width &&
                         bullet.y > state.boss.y && bullet.y < state.boss.y + state.boss.height) {
                         state.playerBullets.splice(index, 1);
@@ -394,12 +407,9 @@
                     }
                 }
             });
-
-            // Boss bullets
             state.bossBullets.forEach((bullet, index) => {
                 bullet.x += bullet.dx * bullet.speed;
                 bullet.y += bullet.dy * bullet.speed;
-                // Collision with player
                 if (!state.abilities.basil.active) {
                     const playerRect = { x: state.player.x - state.player.width / 2, y: state.player.y - state.player.height/2, width: state.player.width, height: state.player.height };
                     const bulletRect = { x: bullet.x - bullet.width/2, y: bullet.y - bullet.height/2, width: bullet.width, height: bullet.height };
@@ -413,7 +423,6 @@
                         }
                     }
                 }
-                // Remove if off-screen
                 if (bullet.x < 0 || bullet.x > canvas.width || bullet.y < 0 || bullet.y > canvas.height) {
                     state.bossBullets.splice(index, 1);
                 }
@@ -423,7 +432,6 @@
         function drawBullets() {
             state.playerBullets.forEach(b => {
                  ctx.fillStyle = b.color;
-                 // Sharp bullets for Khali
                  if(b.color === '#9400D3') {
                      ctx.beginPath();
                      ctx.moveTo(b.x, b.y);
@@ -435,51 +443,41 @@
                     ctx.fillRect(b.x - b.width / 2, b.y, b.width, b.height);
                  }
             });
-
             ctx.fillStyle = '#ffaa00';
             state.bossBullets.forEach(b => ctx.fillRect(b.x - b.width / 2, b.y - b.height / 2, b.width, b.height));
         }
-
 
         // --- Abilities Logic ---
         function updateAbilities() {
             for (const key in state.abilities) {
                 const ability = state.abilities[key];
-                // Handle active duration
                 if (ability.active) {
                     ability.duration--;
                     if (ability.duration <= 0) {
                         ability.active = false;
-                        // Deactivation effects
                         if (key === 'mel') state.boss.frozen = false;
                     }
                 }
-                // Handle cooldown
                 if (ability.cooldown > 0) {
                     ability.cooldown--;
                 }
             }
-             // Mel's healing effect
             if(state.abilities.mel.active && state.player.hp < state.player.maxHp) {
-                state.player.hp += 0.1; // Heal over time
+                state.player.hp += 0.1;
                 if(state.player.hp > state.player.maxHp) state.player.hp = state.player.maxHp;
             }
         }
 
         function activateAbility(name) {
             const ability = state.abilities[name];
-            if (ability.cooldown > 0) return; // Can't use while on cooldown
-
+            if (ability.cooldown > 0) return;
             ability.active = true;
             ability.duration = ability.maxDuration;
             ability.cooldown = ability.maxCooldown;
-
-            // Activation effects
             if (name === 'mel') {
                 state.boss.frozen = true;
             }
             if (name === 'mara') {
-                // Summon two ships
                 for(let i = -1; i <= 1; i+=2) {
                     state.miniShips.push({
                         x: state.player.x + (i * 30), y: state.player.y, width: 15, height: 15,
@@ -490,7 +488,7 @@
         }
 
         // --- UI & Controls ---
-        const joystick = { /* ... same as before, no changes needed ... */
+        const joystick = {
             active: false, radius: 60, knobRadius: 30, baseX: 0, baseY: 0, dx: 0, dy: 0,
             init() { this.baseX = ui.joystickArea.offsetLeft + this.radius; this.baseY = ui.joystickArea.offsetTop + this.radius; },
             handleStart(e) { e.preventDefault(); this.active = true; ui.joystickKnob.style.cursor = 'grabbing'; },
@@ -519,7 +517,6 @@
             const { player } = state;
             player.x += joystick.dx * player.speed;
             player.y += joystick.dy * player.speed;
-            // Boundary checks
             const halfW = player.width / 2; const halfH = player.height/2;
             if (player.x < halfW) player.x = halfW; if (player.x > canvas.width - halfW) player.x = canvas.width - halfW;
             if (player.y < halfH) player.y = halfH; if (player.y > canvas.height - halfH) player.y = canvas.height - halfH;
@@ -528,12 +525,10 @@
         function updateUI() {
             ui.playerHp.textContent = `HP: ${Math.ceil(state.player.hp)}`;
             ui.bossHp.textContent = `BOSS HP: ${state.boss.hp}`;
-
             ui.abilityButtons.forEach(button => {
                 const name = button.dataset.ability;
                 const ability = state.abilities[name];
                 const overlay = button.querySelector('.cooldown-overlay');
-
                 if (ability.cooldown > 0) {
                     button.classList.add('on-cooldown');
                     overlay.style.height = `${(ability.cooldown / ability.maxCooldown) * 100}%`;
@@ -543,7 +538,6 @@
                 }
             });
         }
-
 
         // --- Game Loop ---
         function update() {
@@ -596,14 +590,12 @@
 
         window.addEventListener('resize', () => { resizeCanvas(); joystick.init(); });
 
-        // Ability buttons
         ui.abilityButtons.forEach(button => {
             const handler = (e) => { e.preventDefault(); activateAbility(button.dataset.ability); };
             button.addEventListener('mousedown', handler);
             button.addEventListener('touchstart', handler);
         });
 
-        // Joystick Controls
         ui.joystickArea.addEventListener('mousedown', joystick.handleStart.bind(joystick));
         window.addEventListener('mousemove', joystick.handleMove.bind(joystick));
         window.addEventListener('mouseup', joystick.handleEnd.bind(joystick));
